@@ -5,9 +5,10 @@ import torch.backends.cudnn as cudnn
 from models.experimental import *
 from utils.datasets import *
 from utils.utils import *
+from collections import defaultdict
 
 
-def detect(out, source, weights, view_img, save_txt, imgsz, device, 
+def detect(out, source, weights, view_img, imgsz, device, 
     conf_thres, iou_thres, classes, agnostic_nms, augment, save_img=False):
     webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
 
@@ -76,9 +77,12 @@ def detect(out, source, weights, view_img, save_txt, imgsz, device,
                 p, s, im0 = path, '', im0s
 
             save_path = str(Path(out) / Path(p).name)
-            txt_path = str(Path(out) / Path(p).stem) + ('_%g' % dataset.frame if dataset.mode == 'video' else '')
+            # txt_path = str(Path(out) / Path(p).stem) + ('_%g' % dataset.frame if dataset.mode == 'video' else '')
             s += '%gx%g ' % img.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+
+            bboxes = defaultdict(lambda: [])
+
             if det is not None and len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
@@ -90,13 +94,17 @@ def detect(out, source, weights, view_img, save_txt, imgsz, device,
 
                 # Write results
                 for *xyxy, conf, cls in det:
-                    if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        with open(txt_path + '.txt', 'a') as f:
-                            f.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
+                    # if save_txt:  # Write to file
+                    #     xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                    #     with open(txt_path + '.txt', 'a') as f:
+                    #         f.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
 
                     if save_img or view_img:  # Add bbox to image
                         label = '%s %.2f' % (names[int(cls)], conf)
+                        temp = []
+                        for tensor in xyxy:
+                            temp.append(tensor.item())
+                        bboxes[names[int(cls)]].append(temp)
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
 
             # Print time (inference + NMS)
@@ -132,7 +140,7 @@ def detect(out, source, weights, view_img, save_txt, imgsz, device,
 
     print('Done. (%.3fs)' % (time.time() - t0))
 
-    return im0
+    return bboxes
 
 
 # if __name__ == '__main__':
