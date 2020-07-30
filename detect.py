@@ -9,7 +9,7 @@ from collections import defaultdict
 
 
 def detect(out, source, weights, view_img, imgsz, device, 
-    conf_thres, iou_thres, classes, agnostic_nms, augment, save_img=False):
+    conf_thres, iou_thres, classes, agnostic_nms, augment, supermarket_map, correct_class_name, save_img=False):
     webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
 
     # Initialize
@@ -19,7 +19,7 @@ def detect(out, source, weights, view_img, imgsz, device,
     os.makedirs(out)  # make new output folder
     half = device.type != 'cpu'  # half precision only supported on CUDA
 
-    # Load model
+    # Load models
     model = attempt_load(weights, map_location=device)  # load FP32 model
     imgsz = check_img_size(imgsz, s=model.stride.max())  # check img_size
     if half:
@@ -44,7 +44,8 @@ def detect(out, source, weights, view_img, imgsz, device,
 
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names
-    colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
+    # colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
+    colors = {'correct': [0, 255, 0], 'wrong': [0, 0, 255]}
 
     # Run inference
     t0 = time.time()
@@ -99,16 +100,22 @@ def detect(out, source, weights, view_img, imgsz, device,
                     #     with open(txt_path + '.txt', 'a') as f:
                     #         f.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
 
+                    # if names[int(cls)] in supermarket_map.values():
                     if save_img or view_img:  # Add bbox to image
                         label = '%s %.2f' % (names[int(cls)], conf)
                         temp = []
                         for tensor in xyxy:
                             temp.append(tensor.item())
                         bboxes[names[int(cls)]].append(temp)
-                        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+                        
+                        if names[int(cls)] == correct_class_name:
+                        # plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+                            plot_one_box(xyxy, im0, label=label, color=colors['correct'], line_thickness=2)
+                        else:
+                            plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2)
 
             # Print time (inference + NMS)
-            print('%sDone. (%.3fs)' % (s, t2 - t1))
+            # print('%sDone. (%.3fs)' % (s, t2 - t1))
 
             # # Stream results
             # if view_img:
@@ -132,11 +139,6 @@ def detect(out, source, weights, view_img, imgsz, device,
                         h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
                     vid_writer.write(im0)
-
-    # if save_txt or save_img:
-    #     print('Results saved to %s' % os.getcwd() + os.sep + out)
-    #     if platform == 'darwin':  # MacOS
-    #         os.system('open ' + save_path)
 
     print('Done. (%.3fs)' % (time.time() - t0))
 
