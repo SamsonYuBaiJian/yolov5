@@ -151,7 +151,7 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
 
     print('Done. (%.3fs)' % (time.time() - t0))
 
-    return all_bboxes
+    return all_bboxes, im0.shape
 
 
 # if __name__ == '__main__':
