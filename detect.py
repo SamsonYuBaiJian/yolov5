@@ -50,7 +50,7 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
     custom_names = custom_model.module.names if hasattr(custom_model, 'module') else custom_model.names
     all_names = [names, custom_names]
     # colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
-    colors = {'correct': [0, 255, 0], 'wrong': [0, 0, 255]}
+    colors = {'correct': [0, 100, 0], 'wrong': [0, 0, 200]}
 
     # Run inference
     t0 = time.time()
