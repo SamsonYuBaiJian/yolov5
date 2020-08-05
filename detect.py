@@ -57,6 +57,9 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
 
+    pick_up_item_chosen = False
+    pick_up_item = None
+
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -65,6 +68,8 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
             img = img.unsqueeze(0)
 
         all_bboxes = defaultdict(lambda: [])
+
+        # check if we have chosen one misplaced item to pick up
 
         for m in range(len(all_models)):
             # Inference
@@ -115,13 +120,21 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
                                 temp = []
                                 for tensor in xyxy:
                                     temp.append(tensor.item())
-                                all_bboxes[all_names[m][int(cls)]].append(temp)
+
+                                label_name = all_names[m][int(cls)]
+                                all_bboxes[label_name].append(temp)
                                 
-                                if all_names[m][int(cls)] == correct_class_name:
+                                if label_name == correct_class_name:
                                 # plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
                                     plot_one_box(xyxy, im0, label=label, color=colors['correct'], line_thickness=2)
                                 else:
-                                    plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2)
+                                    if pick_up_item_chosen:
+                                        plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2)
+                                    else:
+                                        plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2, pick_up=True)
+                                        pick_up_item_chosen = True
+                                        x1, y1, x2, y2 = xyxy
+                                        pick_up_item = [label_name, x1.item(), y1.item(), x2.item(), y2.item()]
 
                 # Print time (inference + NMS)
                 # print('%sDone. (%.3fs)' % (s, t2 - t1))
@@ -150,8 +163,7 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
                     vid_writer.write(im0)
 
     print('Done. (%.3fs)' % (time.time() - t0))
-
-    return all_bboxes, im0.shape
+    return all_bboxes, im0.shape, pick_up_item
 
 
 # if __name__ == '__main__':
