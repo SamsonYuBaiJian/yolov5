@@ -916,12 +916,14 @@ def plot_one_box(x, img, color=None, label=None, line_thickness=None, pick_up=No
     tl = line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
     color = color or [random.randint(0, 255) for _ in range(3)]
     c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
-    cv2.rectangle(img, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
     if pick_up == True:
+        cv2.rectangle(img, c1, c2, color, thickness=tl + 2, lineType=cv2.LINE_AA)
         # top left and bottom right
-        cv2.line(img, c1, c2, color, line_thickness)
+        cv2.line(img, c1, c2, color, line_thickness + 2)
         # top right and bottom left
-        cv2.line(img, (c2[0], c1[1]), (c1[0], c2[1]), color, line_thickness)
+        cv2.line(img, (c2[0], c1[1]), (c1[0], c2[1]), color, line_thickness + 2)
+    else:
+        cv2.rectangle(img, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
     if label:
         tf = max(tl - 1, 1)  # font thickness
         t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
