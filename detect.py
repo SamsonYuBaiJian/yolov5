@@ -140,9 +140,10 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
                 if i == max_conf_idx:
                     plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2, pick_up=True)
                     x1, y1, x2, y2 = xyxy
-                    pick_up_item = [label_name, x1.item(), y1.item(), x2.item(), y2.item()]
+                    pick_up_item = [all_wrong['names'][i], x1.item(), y1.item(), x2.item(), y2.item()]
                 else:
                     plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2)
+    
 
                 # Print time (inference + NMS)
                 # print('%sDone. (%.3fs)' % (s, t2 - t1))
