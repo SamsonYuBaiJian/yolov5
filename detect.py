@@ -57,7 +57,6 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
 
-    pick_up_item_chosen = False
     pick_up_item = None
 
     for path, img, im0s, vid_cap in dataset:
@@ -68,6 +67,7 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
             img = img.unsqueeze(0)
 
         all_bboxes = defaultdict(lambda: [])
+        all_wrong = defaultdict(lambda: [])
 
         # check if we have chosen one misplaced item to pick up
 
@@ -85,7 +85,7 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
                 pred = apply_classifier(pred, modelc, img, im0s)
 
             # Process detections
-            for i, det in enumerate(pred):  # detections per image
+            for i, det in enumerate(pred):  # detections per image --> only one image in this case
                 if webcam:  # batch_size >= 1
                     p, s, im0 = path[i], '%g: ' % i, im0s[i].copy()
                 else:
@@ -113,28 +113,36 @@ def detect(out, source, pretrained_weights, custom_weights, view_img, imgsz, dev
                         #     xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         #     with open(txt_path + '.txt', 'a') as f:
                         #         f.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
+                        label_name = all_names[m][int(cls)]
 
-                        if all_names[m][int(cls)] in supermarket_map.values():
+                        if label_name in supermarket_map.values():
                             if save_img or view_img:  # Add bbox to image
                                 label = '%s %.2f' % (all_names[m][int(cls)], conf)
                                 temp = []
                                 for tensor in xyxy:
                                     temp.append(tensor.item())
 
-                                label_name = all_names[m][int(cls)]
                                 all_bboxes[label_name].append(temp)
                                 
                                 if label_name == correct_class_name:
                                 # plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
                                     plot_one_box(xyxy, im0, label=label, color=colors['correct'], line_thickness=2)
                                 else:
-                                    if pick_up_item_chosen:
-                                        plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2)
-                                    else:
-                                        plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2, pick_up=True)
-                                        pick_up_item_chosen = True
-                                        x1, y1, x2, y2 = xyxy
-                                        pick_up_item = [label_name, x1.item(), y1.item(), x2.item(), y2.item()]
+                                    all_wrong['names'].append(label_name)
+                                    all_wrong['confs'].append(conf)
+                                    all_wrong['bboxes'].append(xyxy)
+        if len(all_wrong['names']) > 0:
+            # means there is at least one misplaced item
+            max_conf_idx = np.argmax(all_wrong['confs'])
+            for i in range(len(all_wrong['names'])):
+                label = '%s %.2f' % (all_wrong['names'][i], all_wrong['confs'][i])
+                xyxy = all_wrong['bboxes'][i]
+                if i == max_conf_idx:
+                    plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2, pick_up=True)
+                    x1, y1, x2, y2 = xyxy
+                    pick_up_item = [label_name, x1.item(), y1.item(), x2.item(), y2.item()]
+                else:
+                    plot_one_box(xyxy, im0, label=label, color=colors['wrong'], line_thickness=2)
 
                 # Print time (inference + NMS)
                 # print('%sDone. (%.3fs)' % (s, t2 - t1))
